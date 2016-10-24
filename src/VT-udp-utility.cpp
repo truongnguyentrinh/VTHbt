@@ -27,15 +27,25 @@ Socket_Errors_en UDP_connection::connect(char* hostname, int portID)
   int status = 0;
   //bind host name to socket
   my_UDP_connection.udp_addr.sun_family = AF_UNIX;
+  my_UDP_connection.udp_addr.sun_port = portID;
   strncpy(my_UDP_connection.udp_addr.sun_path, hostname, sizeof(my_UDP_connection.udp_addr.sun_path) - 1);
 
-  //
+  //binding socket to address
   status = bind(my_UDP_connection.socket, (struct sockaddr *) &my_UDP_connection.udp_addr, sizeof(struct sockaddr_un));
   //if bind() fail
   if (status == -1)
   {
     //close socket and return failure
-    //close(UDP_connection_lc.socket)
+    close(UDP_connection_lc.socket)
+    return SOCKET_ERROR_BIND_FAIL;
+  }
+  
+  //attemp to connect to socket
+  status = connect(my_UDP_connection.socket, (struct sockaddr *) &my_UDP_connection.udp_addr, sizeof(struct sockaddr_un));
+  if (status == -1)
+  {
+    //close socket and return failure
+    close(UDP_connection_lc.socket)
     return SOCKET_ERROR_CONNECT_FAIL;
   }
   return SOCKET_SUCCESS;
@@ -54,6 +64,8 @@ Socket_Errors_en UDP_connection::send(char* buffer, int len)
 //buffer size for data is 1024
 Socket_Errors_en UDP_connection::receive(char * buffer, int* len)
 {
+
+
   *len = recvfrom(my_UDP_connection.socket, buffer, BUFF_LEN, 0, 0, 0);
   //if length received is not 0, return success, else return fail
   if(*len >0)
