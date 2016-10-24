@@ -1,0 +1,8 @@
+BUILD:
+$> make
+
+CLEAN:
+$> make clean
+
+RUN PROGRAM:
+$> ./VTHbt
