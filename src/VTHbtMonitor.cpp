@@ -16,6 +16,9 @@ Once at least 1 application is registered, replace loc 0 with actual application
 #include <pthread.h>
 #include <stdlib.h>
 
+#define HBT_WDT_PRT 5000
+#define APP_HBT_PRT 5001
+
 //data struct to hold information to a registed application
 typedef struct registeredApp
 {
@@ -48,15 +51,17 @@ pthread_t tid[3];
 //udp connection from hbt monitor to wdt monitor
 //each application would have their own static connection object.
 static UDP_connection Hbt_Wdt_udp;
+static UDP_connection App_Hbt_udp;
 
 //initialize the heartbeat monitor
 void VTHbtMonitor::initialize(void)
 {
-  char wdt_monitor_name[] = "WDT_MONITOR";
   received_len = 0;
   //initilize and connect hbt_monitor to wdt_monitor
   Hbt_Wdt_udp.Initialize();
-  Hbt_Wdt_udp.connect(wdt_monitor_name, 5000);
+  Hbt_Wdt_udp.connect((char*) WDT_MONITOR, HBT_WDT_PRT);
+  App_Hbt_udp.Initialize();
+  App_Hbt_udp.connect((char*) HBT_MONITOR, APP_HBT_PRT);
 }
 
 //sends heart beat to port 5000 to watchdog monitor
@@ -64,7 +69,7 @@ static void heartBeat_wdt()
 {
   dataPacketFiedls_u dataPacket;
   dataPacket.packetStruct.msg_cmd = MsgType_Heartbeat;
-  VTHbt_WDT_connection.send(dataPacket.bufferArray, sizeof(dataPacket));
+  Hbt_Wdt_udp.send(dataPacket.bufferArray, sizeof(dataPacket));
 }
 
 static int check_time_out()
@@ -193,7 +198,7 @@ static void *receiver_thread(void* arg)
   {
      printf("in thread receiver\r\n");
     //receive with known length, put into buffer
-    VTHbt_WDT_connection.receive((char*) &udp_data_packet_dt, &received_len);
+    App_Hbt_udp.receive((char*) &udp_data_packet_dt, &received_len);
 
     //mutex lock the shared queue
     pthread_mutex_lock(&incomingPk->mu_queue);

@@ -2,14 +2,14 @@
 #define VT_UDP_UL_H
 #include <stdio.h>
 #include <sys/types.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/un.h> //tutorial point on bind() - Unix, Linux System Call
 using namespace std;
 //defines
-#define WDT_UDP_ADDR 0x10101010
-#define HBT_UDP_ADDR 0x01010101
-#define BUFF_LEN 20   //size of UDP buffer
-
+#define BUFF_LEN 12   //size of UDP buffer#
+#define WDT_MONITOR "WDT_MONITOR"
+#define HBT_MONITOR "HBT_MONITOR"
 //enum for error code
 typedef enum Socket_Errors
 {
@@ -32,11 +32,10 @@ typedef enum VHM_cmd
 //data structure
 typedef struct UDP_struct
 {
-  struct UDP_Connection_t* nextUDPConnection;
-  struct sockaddr_un udp_addr;
+  struct sockaddr_in udp_addr;
   uint16_t udp_des_prt;
-  char* hostname;
   int socket;
+  char hostname[BUFF_LEN];
 }UDP_struct_t;
 
 
