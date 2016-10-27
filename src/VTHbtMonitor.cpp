@@ -16,6 +16,9 @@ Once at least 1 application is registered, replace loc 0 with actual application
 #include <pthread.h>
 #include <stdlib.h>
 
+#define HBT_WDT_PRT 5000
+#define APP_HBT_PRT 5001
+
 //data struct to hold information to a registed application
 typedef struct registeredApp
 {
@@ -38,32 +41,27 @@ typedef struct MessageQueue
   pthread_cond_t cond;
 }MessageQueue_t;
 
-typedef struct secCounter
-{
-  int secCounter;
-  pthread_mutex_t mu_secCounter;
-}secCounter_t;
-
 map<char*, registeredApp_t> appList;
 map<char*, registeredApp_t>::iterator appp_iterator;
 UDP_connection VTHbt_WDT_connection;
 static int received_len = 0;
 static MessageQueue_t dataPacketQueue;
-static secCounter_t seconds_passed;
 pthread_t tid[3];
 
 //udp connection from hbt monitor to wdt monitor
 //each application would have their own static connection object.
 static UDP_connection Hbt_Wdt_udp;
+static UDP_connection App_Hbt_udp;
 
 //initialize the heartbeat monitor
 void VTHbtMonitor::initialize(void)
 {
-  char wdt_monitor_name[] = "WDT_MONITOR";
   received_len = 0;
   //initilize and connect hbt_monitor to wdt_monitor
   Hbt_Wdt_udp.Initialize();
-  Hbt_Wdt_udp.connect(wdt_monitor_name, 5000);
+  Hbt_Wdt_udp.connect((char*) WDT_MONITOR, HBT_WDT_PRT);
+  App_Hbt_udp.Initialize();
+  App_Hbt_udp.connect((char*) HBT_MONITOR, APP_HBT_PRT);
 }
 
 //sends heart beat to port 5000 to watchdog monitor
@@ -71,56 +69,7 @@ static void heartBeat_wdt()
 {
   dataPacketFiedls_u dataPacket;
   dataPacket.packetStruct.msg_cmd = MsgType_Heartbeat;
-  VTHbt_WDT_connection.send(dataPacket.bufferArray, sizeof(dataPacket));
-}
-
-//handling a second event. Whenever a second event happens, increment the second counter
-static void sec_handler()
-{
-  //creating pointer to the shared secoond counter
-  secCounter_t* newSec = &seconds_passed;
-  //lock the resource
-  pthread_mutex_lock(&newSec->mu_secCounter);
-  //increment the resource
-  newSec->secCounter++;
-  //unclock the resource
-  pthread_mutex_unlock(&newSec->mu_secCounter);
-}
-
-//handling incoming string over port 5001
-static void string_handler(string message)
-{
-  dataPacketFiedls_u *msg_fields;
-  registeredApp_t temp;
-
-  //pointing the char array to the address of the message string
-  message.copy(msg_fields->bufferArray, sizeof(msg_fields->bufferArray) - 1, 0);
-
-  //switch on commands:
-  switch(msg_fields->packetStruct.msg_cmd)
-  {
-    case MsgType_RegisterClient:
-      //get the fields out of the message and register the client application
-      temp.timeout = msg_fields->packetStruct.timeout;
-      temp.maxRetries = msg_fields->packetStruct.retries ;
-      temp.currentRT = temp.maxRetries;
-      temp.currentTO = temp.timeout;
-      //insert app onto the map for monitoring
-      appList.insert (pair<char*, registeredApp_t>(msg_fields->packetStruct.packetbuffer, temp));
-      break;
-    case MsgType_DeregisterClient:
-      //get client ID and deregister it
-      appp_iterator = appList.find(msg_fields->packetStruct.packetbuffer);
-      appList.erase(appp_iterator);
-      break;
-    case MsgType_Heartbeat:
-      //reload counter for time out and retries
-      appp_iterator = appList.find(msg_fields->packetStruct.packetbuffer);
-      appp_iterator->second.currentTO = appp_iterator->second.timeout;
-      break;
-    default:
-      break;
-  }
+  Hbt_Wdt_udp.send(dataPacket.bufferArray, sizeof(dataPacket));
 }
 
 static int check_time_out()
@@ -163,38 +112,75 @@ static int check_time_out()
   }
   return 0;
 }
+//handling a second event. Whenever a second event happens, increment the second counter
+static void sec_handler()
+{
+  printf("handling timer\r\n");
+  //check for time out on application list
+  if(!check_time_out());
+    heartBeat_wdt(); // sends heart beat to wdt_monitor
+}
 
-//function to start a 1 second timer, and periodically check timer to send hbt to wdt
-//
+//handling incoming string over port 5001
+static void string_handler(string message)
+{
+  dataPacketFiedls_u *msg_fields;
+  registeredApp_t temp;
+
+  //pointing the char array to the address of the message string
+  message.copy(msg_fields->bufferArray, sizeof(msg_fields->bufferArray) - 1, 0);
+
+  //switch on commands:
+  switch(msg_fields->packetStruct.msg_cmd)
+  {
+    case MsgType_RegisterClient:
+      //get the fields out of the message and register the client application
+      temp.timeout = msg_fields->packetStruct.timeout;
+      temp.maxRetries = msg_fields->packetStruct.retries ;
+      temp.currentRT = temp.maxRetries;
+      temp.currentTO = temp.timeout;
+      //insert app onto the map for monitoring
+      appList.insert (pair<char*, registeredApp_t>(msg_fields->packetStruct.packetbuffer, temp));
+      break;
+    case MsgType_DeregisterClient:
+      //get client ID and deregister it
+      appp_iterator = appList.find(msg_fields->packetStruct.packetbuffer);
+      appList.erase(appp_iterator);
+      break;
+    case MsgType_Heartbeat:
+      //reload counter for time out and retries
+      appp_iterator = appList.find(msg_fields->packetStruct.packetbuffer);
+      appp_iterator->second.currentTO = appp_iterator->second.timeout;
+      break;
+    default:
+      break;
+  }
+}
+
+
+
+//function to wait for and service message on queue
 static void *heartbeat_thread(void* arg)
 {
   string s;
   MessageQueue_t* mq = &dataPacketQueue;
-  secCounter_t* newSec = &seconds_passed;
   while(1)
   {
+    
     pthread_mutex_lock(&mq->mu_queue);
     if(!mq->msg_queue.empty())
     {
+      printf("got msg in thread heartbeat\r\n");
        s = mq->msg_queue.front();
        mq->msg_queue.pop();
-       pthread_mutex_unlock(&mq->mu_queue);
        string_handler(s);
     }
     else
     {
+      printf("waiting in thread heartbeat\r\n");
       pthread_cond_wait(&mq->cond, &mq->mu_queue);
     }
-
-    pthread_mutex_lock(&newSec->mu_secCounter);
-    if(newSec->secCounter > 0)
-    {
-      newSec->secCounter--;
-      //check for time out on application list
-      if(!check_time_out());
-        heartBeat_wdt(); // sends heart beat to wdt_monitor
-    }
-    pthread_mutex_unlock(&newSec->mu_secCounter);
+    pthread_mutex_unlock(&mq->mu_queue);
   }
 }
 
@@ -205,11 +191,13 @@ static void *receiver_thread(void* arg)
   MessageQueue_t* incomingPk = &dataPacketQueue;
   //local data packet type to parse in data packet from messages
   string udp_data_packet_dt;
+ 
   //loop and try to get a message from buffer
   while(1)
   {
+     printf("in thread receiver\r\n");
     //receive with known length, put into buffer
-    VTHbt_WDT_connection.receive((char*) &udp_data_packet_dt, &received_len);
+    App_Hbt_udp.receive((char*) &udp_data_packet_dt, &received_len);
 
     //mutex lock the shared queue
     pthread_mutex_lock(&incomingPk->mu_queue);
@@ -226,9 +214,10 @@ static void *receiver_thread(void* arg)
 static void *timer_thread(void* arg)
 {
   struct timeval sec_t;
-
+ 
   while(1)
   {
+    printf("in thread timer\r\n");
     sec_t.tv_sec = 1;
     sec_t.tv_usec = 0;
     select(0, NULL, NULL, NULL, &sec_t);
@@ -244,29 +233,31 @@ void VTHbtMonitor::run(void)
   //      - one to periodically sendbeats to WDT daemon
   //      - one to loop waiting for incoming packet
 
-  //create first thread for heartbeat
-  err = pthread_create(&(tid[0]), NULL, heartbeat_thread, (void*) i);
-  //check for thread error
-  if (err != 0)
-     printf("\ncan't create thread :[%s]", strerror(err));
-  else
-     printf("\n hbt thread created successfully\n");
-
-  //create second thread for receiver
-  err = pthread_create(&(tid[1]), NULL, receiver_thread, (void*) i);
+  //create first thread for receiver
+  err = pthread_create(&(tid[0]), NULL, receiver_thread, (void*) NULL);
   //check for thread error
   if (err != 0)
      printf("\ncan't create thread :[%s]", strerror(err));
   else
      printf("\n receiver thread created successfully\n");
 
+  //create second thread for heartbeat
+  err = pthread_create(&(tid[1]), NULL, heartbeat_thread, (void*) NULL);
+  //check for thread error
+  if (err != 0)
+     printf("\ncan't create thread :[%s]", strerror(err));
+  else
+     printf("\n hbt thread created successfully\n");
+
   //create thrid thread for 1 second timer
-  err = pthread_create(&(tid[2]), NULL, timer_thread, (void*) i);
+  err = pthread_create(&(tid[2]), NULL, timer_thread, (void*) NULL);
   //check for thread error
   if (err != 0)
       printf("\ncan't create thread :[%s]", strerror(err));
   else
       printf("\n 1sec timer thread created successfully\n");
 
+  while(1)
+	  sleep(1);
 
 }

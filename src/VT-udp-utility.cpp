@@ -7,13 +7,18 @@ used by HBT to send msg to WDT and receive data from application
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/un.h> //tutorial point on bind() - Unix, Linux System Call
+#include <unistd.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <netdb.h> 
+
+#define NET_IP "127.0.0.1"
 
 //init UDP socket on UDPHbt only
 Socket_Errors_en UDP_connection::Initialize(void)
 {
   //create a socket
-  my_UDP_connection.socket = socket(AF_UNIX , SOCK_DGRAM, 0);
+  my_UDP_connection.socket = socket(AF_INET , SOCK_DGRAM, 0);
   if (my_UDP_connection.socket < 0)
     return SOCKET_ERROR_CREAT_FAIL;
 
@@ -21,23 +26,28 @@ Socket_Errors_en UDP_connection::Initialize(void)
 }
 
 //Connect to host at port
-//UDP is connectionless, so this step need to assign hostname, destination port ID to the UDP structure, and bind socket to name of host
 Socket_Errors_en UDP_connection::connect(char* hostname, int portID)
 {
   int status = 0;
-  //bind host name to socket
-  my_UDP_connection.udp_addr.sun_family = AF_UNIX;
-  strncpy(my_UDP_connection.udp_addr.sun_path, hostname, sizeof(my_UDP_connection.udp_addr.sun_path) - 1);
+  //reset udp_addr
+  memset((char*)&my_UDP_connection.udp_addr, 0, sizeof(my_UDP_connection.udp_addr));
+  //setup inet address
+  my_UDP_connection.udp_addr.sin_family = AF_INET;
+  my_UDP_connection.udp_addr.sin_addr.s_addr = inet_addr(NET_IP);
+  my_UDP_connection.udp_addr.sin_port = htons(portID);
 
-  //
+  //binding socket to address
   status = bind(my_UDP_connection.socket, (struct sockaddr *) &my_UDP_connection.udp_addr, sizeof(struct sockaddr_un));
   //if bind() fail
   if (status == -1)
   {
     //close socket and return failure
-    //close(UDP_connection_lc.socket)
-    return SOCKET_ERROR_CONNECT_FAIL;
+    close(my_UDP_connection.socket);
+    return SOCKET_ERROR_BIND_FAIL;
   }
+
+  memcpy(my_UDP_connection.hostname, hostname, sizeof(my_UDP_connection.hostname));
+
   return SOCKET_SUCCESS;
 }
 
@@ -54,7 +64,10 @@ Socket_Errors_en UDP_connection::send(char* buffer, int len)
 //buffer size for data is 1024
 Socket_Errors_en UDP_connection::receive(char * buffer, int* len)
 {
-  *len = recvfrom(my_UDP_connection.socket, buffer, BUFF_LEN, 0, 0, 0);
+  struct sockaddr si_recv;
+  int si_recv_len = sizeof(si_recv);
+
+  *len = recvfrom(my_UDP_connection.socket, buffer, BUFF_LEN, 0, &si_recv, &si_recv_len);
   //if length received is not 0, return success, else return fail
   if(*len >0)
     return SOCKET_SUCCESS;
