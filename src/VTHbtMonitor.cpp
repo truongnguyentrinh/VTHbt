@@ -15,6 +15,7 @@ Once at least 1 application is registered, replace loc 0 with actual application
 #include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
+#include <iostream>
 
 #define HBT_WDT_PRT 5000
 #define APP_HBT_PRT 5001
@@ -36,7 +37,7 @@ typedef struct registeredApp
 //message queue to hold messages sent to hbt by applications
 typedef struct MessageQueue
 {
-  queue<string> msg_queue;
+  queue<char*> msg_queue;
   pthread_mutex_t mu_queue;
   pthread_cond_t cond;
 }MessageQueue_t;
@@ -67,9 +68,13 @@ void VTHbtMonitor::initialize(void)
 //sends heart beat to port 5000 to watchdog monitor
 static void heartBeat_wdt()
 {
-  dataPacketFiedls_u dataPacket;
-  dataPacket.packetStruct.msg_cmd = MsgType_Heartbeat;
-  Hbt_Wdt_udp.send(dataPacket.bufferArray, sizeof(dataPacket));
+  char message[20];
+  int message_size;
+  
+  string progname = "HBT_MONITOR";
+
+  message_size = sprintf(message, "%d,%s\r\n", MsgType_Heartbeat, progname.c_str());
+  Hbt_Wdt_udp.send(message, message_size);
 }
 
 static int check_time_out()
@@ -122,34 +127,55 @@ static void sec_handler()
 }
 
 //handling incoming string over port 5001
-static void string_handler(string message)
+static void string_handler(char* message)
 {
-  dataPacketFiedls_u *msg_fields;
   registeredApp_t temp;
+  char* cptr;
+  char progname[20];
+  int cmd;
 
-  //pointing the char array to the address of the message string
-  message.copy(msg_fields->bufferArray, sizeof(msg_fields->bufferArray) - 1, 0);
+  char* copy = strdup(message);
+
+  cptr = strtok(copy, ",\r\n");
+  if (cptr!=NULL)
+    cmd = atoi(cptr);
+  else cmd = MsgType_Heartbeat;
 
   //switch on commands:
-  switch(msg_fields->packetStruct.msg_cmd)
+  switch(cmd)
   {
     case MsgType_RegisterClient:
-      //get the fields out of the message and register the client application
-      temp.timeout = msg_fields->packetStruct.timeout;
-      temp.maxRetries = msg_fields->packetStruct.retries ;
+      cptr = strtok(NULL,",\r\n"); 
+      if(cptr!=NULL)
+        strcat(progname, cptr);
+      cptr = strtok(NULL,",\r\n"); 
+      if(cptr!=NULL)
+        temp.timeout = atoi(cptr);
+      else temp.timeout = 100;
+      cptr = strtok(NULL,",\r\n"); 
+      if(cptr!=NULL)      
+        temp.maxRetries = atoi(cptr);
+      else temp.maxRetries = 100;
+
       temp.currentRT = temp.maxRetries;
       temp.currentTO = temp.timeout;
       //insert app onto the map for monitoring
-      appList.insert (pair<char*, registeredApp_t>(msg_fields->packetStruct.packetbuffer, temp));
+      appList.insert (pair<char*, registeredApp_t>(progname, temp));
       break;
     case MsgType_DeregisterClient:
+      cptr = strtok(NULL,",\r\n"); 
+      if(cptr!=NULL)
+        strcat(progname, cptr);
       //get client ID and deregister it
-      appp_iterator = appList.find(msg_fields->packetStruct.packetbuffer);
+      appp_iterator = appList.find(progname);
       appList.erase(appp_iterator);
       break;
     case MsgType_Heartbeat:
+      cptr = strtok(NULL,",\r\n"); 
+      if(cptr!=NULL)
+        strcat(progname, cptr);
       //reload counter for time out and retries
-      appp_iterator = appList.find(msg_fields->packetStruct.packetbuffer);
+      appp_iterator = appList.find(progname);
       appp_iterator->second.currentTO = appp_iterator->second.timeout;
       break;
     default:
@@ -162,7 +188,7 @@ static void string_handler(string message)
 //function to wait for and service message on queue
 static void *heartbeat_thread(void* arg)
 {
-  string s;
+  char* s;
   MessageQueue_t* mq = &dataPacketQueue;
   while(1)
   {
@@ -190,14 +216,14 @@ static void *receiver_thread(void* arg)
   //local queue pointer pointing to the shared static queue structure declared for this file
   MessageQueue_t* incomingPk = &dataPacketQueue;
   //local data packet type to parse in data packet from messages
-  string udp_data_packet_dt;
+  char udp_data_packet_dt[20];
  
   //loop and try to get a message from buffer
   while(1)
   {
      printf("in thread receiver\r\n");
     //receive with known length, put into buffer
-    App_Hbt_udp.receive((char*) &udp_data_packet_dt, &received_len);
+    App_Hbt_udp.receive(udp_data_packet_dt, &received_len);
 
     //mutex lock the shared queue
     pthread_mutex_lock(&incomingPk->mu_queue);

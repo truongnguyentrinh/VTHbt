@@ -38,23 +38,6 @@ typedef struct UDP_struct
   char hostname[BUFF_LEN];
 }UDP_struct_t;
 
-
-#pragma pack(1)
-//data packet used for all msg types
-typedef struct dataPacket
-{
-  VHM_cmd_enum msg_cmd;
-  char packetbuffer[BUFF_LEN];
-  int timeout;
-  int retries;
-}dataPacket_struct;
-typedef union dataPacketFiedls
-{
-  dataPacket_struct packetStruct;
-  char bufferArray[sizeof(dataPacket_struct)];
-}dataPacketFiedls_u;
-#pragma pack(0)
-
 class UDP_connection
 {
   private:

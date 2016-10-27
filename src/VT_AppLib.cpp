@@ -2,45 +2,43 @@
 #include <VT_AppLib.h>
 #include <VT-udp-utility.h>
 #include <string>
+#include <iostream>
+using namespace std;
 
 static UDP_connection appConnection;
-static dataPacketFiedls_u message;
 
 //register an application with hbtmonitor
 bool VTAppFuncs::registerWithHbt(string progname, int timeout, int maxretries)
 {
   char bht_name[] = "HBT_MONITOR";
-  //copy string to message name buffer
-  strncpy(message.packetStruct.packetbuffer, (char*) &progname, sizeof(message.packetStruct.packetbuffer) - 1);
-  //assign fields to structure
-  message.packetStruct.timeout = timeout;
-  message.packetStruct.retries = maxretries;
-  message.packetStruct.msg_cmd = MsgType_RegisterClient;
+  char message[20];
+  int message_size;
+  
+  message_size = sprintf(message, "%d,%s,%d,%d\r\n", MsgType_RegisterClient, progname.c_str(), timeout, maxretries);
 
   //create a connection to UDP port 5001
   appConnection.Initialize();
   appConnection.connect(bht_name, 5001);
   //send message to register application with hbt monitor
-  return (appConnection.send(message.bufferArray, sizeof(message)) == SOCKET_SUCCESS);
+  return (appConnection.send(message, message_size) == SOCKET_SUCCESS);
 
 }
 //deregister an application with hbtmonitor
 bool VTAppFuncs::deregisterWithHbt(string progname)
 {
-  strncpy(message.packetStruct.packetbuffer, (char*) &progname, sizeof(message.packetStruct.packetbuffer) - 1);
-  //assign fields to structure
-  message.packetStruct.timeout = 0;
-  message.packetStruct.retries = 0;
-  message.packetStruct.msg_cmd = MsgType_DeregisterClient;
-  return (appConnection.send(message.bufferArray, sizeof(message)) == SOCKET_SUCCESS);
+  char message[20];
+  int message_size;
+
+  message_size = sprintf(message, "%d,%s\r\n",MsgType_DeregisterClient, progname.c_str());
+  return (appConnection.send(message, message_size) == SOCKET_SUCCESS);
 }
 //send ping to hbtmonitor to keep the app alive
 bool VTAppFuncs::pingHbt(char* progname)
 {
-  strncpy(message.packetStruct.packetbuffer, progname, sizeof(message.packetStruct.packetbuffer) - 1);
-  //assign fields to structure
-  message.packetStruct.timeout = 0;
-  message.packetStruct.retries = 0;
-  message.packetStruct.msg_cmd = MsgType_Heartbeat;
-  return (appConnection.send(message.bufferArray, sizeof(message)) == SOCKET_SUCCESS);
+
+  char message[20];
+  int message_size;
+
+  message_size = sprintf(message, "%d,%s\r\n",MsgType_Heartbeat, progname);
+  return (appConnection.send(message, message_size) == SOCKET_SUCCESS);
 }
