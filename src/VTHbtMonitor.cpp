@@ -159,8 +159,7 @@ static void string_handler(string message)
 
 
 
-//function to start a 1 second timer, and periodically check timer to send hbt to wdt
-//
+//function to wait for and service message on queue
 static void *heartbeat_thread(void* arg)
 {
   string s;
@@ -174,7 +173,6 @@ static void *heartbeat_thread(void* arg)
       printf("got msg in thread heartbeat\r\n");
        s = mq->msg_queue.front();
        mq->msg_queue.pop();
-       pthread_mutex_unlock(&mq->mu_queue);
        string_handler(s);
     }
     else
@@ -182,6 +180,7 @@ static void *heartbeat_thread(void* arg)
       printf("waiting in thread heartbeat\r\n");
       pthread_cond_wait(&mq->cond, &mq->mu_queue);
     }
+    pthread_mutex_unlock(&mq->mu_queue);
   }
 }
 
@@ -235,7 +234,7 @@ void VTHbtMonitor::run(void)
   //      - one to loop waiting for incoming packet
 
   //create first thread for receiver
-  err = pthread_create(&(tid[0]), NULL, receiver_thread, (void*) i);
+  err = pthread_create(&(tid[0]), NULL, receiver_thread, (void*) NULL);
   //check for thread error
   if (err != 0)
      printf("\ncan't create thread :[%s]", strerror(err));
@@ -243,7 +242,7 @@ void VTHbtMonitor::run(void)
      printf("\n receiver thread created successfully\n");
 
   //create second thread for heartbeat
-  err = pthread_create(&(tid[1]), NULL, heartbeat_thread, (void*) i);
+  err = pthread_create(&(tid[1]), NULL, heartbeat_thread, (void*) NULL);
   //check for thread error
   if (err != 0)
      printf("\ncan't create thread :[%s]", strerror(err));
@@ -251,12 +250,14 @@ void VTHbtMonitor::run(void)
      printf("\n hbt thread created successfully\n");
 
   //create thrid thread for 1 second timer
-  err = pthread_create(&(tid[2]), NULL, timer_thread, (void*) i);
+  err = pthread_create(&(tid[2]), NULL, timer_thread, (void*) NULL);
   //check for thread error
   if (err != 0)
       printf("\ncan't create thread :[%s]", strerror(err));
   else
       printf("\n 1sec timer thread created successfully\n");
 
+  while(1)
+	sleep(1);
 
 }

@@ -1,10 +1,10 @@
-IDIR =inc/
+IDIR =inc
 CC=g++
 CFLAGS=-I$(IDIR)
 
 SDIR=src/
 
-ODIR=obj/
+ODIR=obj
 LDIR =lib/
 
 LIBS=-lm
