@@ -64,7 +64,7 @@ Socket_Errors_en UDP_connection::send(char* buffer, int len)
 //buffer size for data is 1024
 Socket_Errors_en UDP_connection::receive(char * buffer, int* len)
 {
-  struct sockaddr_in si_recv;
+  struct sockaddr si_recv;
   int si_recv_len = sizeof(si_recv);
 
   *len = recvfrom(my_UDP_connection.socket, buffer, BUFF_LEN, 0, &si_recv, &si_recv_len);

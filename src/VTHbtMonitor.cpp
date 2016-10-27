@@ -258,6 +258,6 @@ void VTHbtMonitor::run(void)
       printf("\n 1sec timer thread created successfully\n");
 
   while(1)
-	sleep(1);
+	  sleep(1);
 
 }
