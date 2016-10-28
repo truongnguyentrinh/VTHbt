@@ -1,6 +1,13 @@
 /*
-Generic UDP socket utility
-used by HBT to send msg to WDT and receive data from application
+  VT-udp-utility.cpp
+  Author: TruongNguyen Trinh
+  Description: 
+    Generic UDP socket utility
+    used by HBT to send msg to WDT and receive data from application
+  References:
+    https://www.abc.se/~m6695/udp.html
+    https://www.cs.cmu.edu/afs/cs/academic/class/15213-f99/www/class26/udpserver.c
+    https://www.cs.cmu.edu/afs/cs/academic/class/15213-f99/www/class26/udpclient.c
 */
 #include <stdint.h>
 #include <VT-udp-utility.h>

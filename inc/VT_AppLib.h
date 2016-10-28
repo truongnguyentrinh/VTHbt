@@ -5,7 +5,7 @@ using namespace std;
   class VTAppFuncs
   {
   private:
-
+    char message_buffer[20];
   public:
     //register an application with hbtmonitor
     bool registerWithHbt(string progname, int timeout, int maxretires);
