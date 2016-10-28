@@ -6,8 +6,9 @@
 int main()
 {
     VTAppFuncs vt_app_connect;
+    string name = "testApp";
     if(!vt_app_connect.registerWithHbt("testApp", 5, 1))
-        printf("failed to reg\r\n");
+        printf("failed to reg %s\r\n",name);
     while(1)
     {
         printf("sending hbt to monitor\r\n");

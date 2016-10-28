@@ -74,7 +74,7 @@ Socket_Errors_en UDP_connection::receive(char * buffer, int* len)
   struct sockaddr si_recv;
   int si_recv_len = sizeof(si_recv);
 
-  *len = recvfrom(my_UDP_connection.socket, buffer, BUFF_LEN, 0, &si_recv, &si_recv_len);
+  *len = recvfrom(my_UDP_connection.socket, buffer, BUFF_LEN, 0, &si_recv, 0);
   //if length received is not 0, return success, else return fail
   if(*len >0)
     return SOCKET_SUCCESS;
