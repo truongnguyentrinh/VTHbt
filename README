@@ -6,3 +6,10 @@ $> make clean
 
 RUN PROGRAM:
 $> ./VTHbt
+
+BUILD with testApp:
+$>make clean && make testApp && make
+
+RUN with test APP:
+$> ./VTHbt &
+$> ./testApp &
