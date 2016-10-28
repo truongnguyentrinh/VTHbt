@@ -28,7 +28,7 @@ bool VTAppFuncs::registerWithHbt(string progname, int timeout, int maxretries)
 bool VTAppFuncs::deregisterWithHbt(string progname)
 {
   int message_size;
-  //construct 
+  //construct packet to deregister an app: command, app name
   message_size = sprintf(message_buffer, "%d,%s\r\n",MsgType_DeregisterClient, progname.c_str());
   return (appConnection.send(message_buffer, message_size) == SOCKET_SUCCESS);
 }
@@ -36,7 +36,7 @@ bool VTAppFuncs::deregisterWithHbt(string progname)
 bool VTAppFuncs::pingHbt(char* progname)
 {
   int message_size;
-
+  //construct a packet to send app heartbeats: command, app name
   message_size = sprintf(message_buffer, "%d,%s\r\n",MsgType_Heartbeat, progname);
   return (appConnection.send(message_buffer, message_size) == SOCKET_SUCCESS);
 }
