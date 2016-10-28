@@ -92,6 +92,7 @@ static int check_time_out()
   //       else kill and restart app
   for(app_iterator = appList.begin(); app_iterator != appList.end(); app_iterator++)
   {
+    printf("current TO %d\r\n", app_iterator->second.currentTO);   
     if(((app_iterator->second.currentTO)--) == 0)
     {
       if(((app_iterator->second.currentRT)--) == 0)
@@ -155,10 +156,12 @@ static void string_handler(string message)
   {
     //received command to register a new application
     case MsgType_RegisterClient:
+      printf("trying to register client");
       //get the name of the application
       cptr = strtok(NULL,",\r\n"); 
       if(cptr!=NULL)
         strcat(progname, cptr);
+      printf("client name %s\r\n", progname); 
       //get the imeout value of application
       cptr = strtok(NULL,",\r\n"); 
       if(cptr!=NULL)

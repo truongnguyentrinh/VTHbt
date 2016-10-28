@@ -43,7 +43,7 @@ Socket_Errors_en UDP_connection::connect(char* hostname, int portID)
   my_UDP_connection.udp_addr.sin_port = htons(portID);
 
   //binding socket to address
-  status = bind(my_UDP_connection.socket, (struct sockaddr *) &my_UDP_connection.udp_addr, sizeof(struct sockaddr_un));
+  status = bind(my_UDP_connection.socket, (struct sockaddr *) &my_UDP_connection.udp_addr, sizeof(struct sockaddr_in));
   //if bind() fail
   if (status == -1)
   {
