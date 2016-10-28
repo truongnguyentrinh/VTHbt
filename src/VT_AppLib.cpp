@@ -13,16 +13,18 @@ bool VTAppFuncs::registerWithHbt(string progname, int timeout, int maxretries)
 {
   char bht_name[] = "HBT_MONITOR";
   int message_size;
-  
+  int result;
+  printf("trying to register %s\r\n", progname); 
   //construct registration packet: command, ap name,time out, retries
   message_size = sprintf(message_buffer, "%d,%s,%d,%d\r\n", MsgType_RegisterClient, progname.c_str(), timeout, maxretries);
 
   //create a connection to UDP port 5001
-  appConnection.Initialize();
-  appConnection.connect(bht_name, 5001);
+  printf("init status %d\r\n",appConnection.Initialize());
+  printf("connect status %d\r\n",appConnection.connect(bht_name, 5001));
   //send message to register application with hbt monitor
-  return (appConnection.send(message_buffer, message_size) == SOCKET_SUCCESS);
-
+  result = (appConnection.send(message_buffer, message_size));
+  printf("result %d\r\n", result);
+  return (result==SOCKET_SUCCESS);
 }
 //deregister an application with hbtmonitor
 bool VTAppFuncs::deregisterWithHbt(string progname)

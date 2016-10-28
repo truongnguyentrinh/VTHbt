@@ -20,7 +20,6 @@
 #include <netdb.h> 
 
 #define NET_IP "127.0.0.1"
-
 //init UDP socket on UDPHbt only
 Socket_Errors_en UDP_connection::Initialize(void)
 {
@@ -49,6 +48,7 @@ Socket_Errors_en UDP_connection::connect(char* hostname, int portID)
   if (status == -1)
   {
     //close socket and return failure
+    printf("bind failed with stat %d\r\n", status);
     close(my_UDP_connection.socket);
     return SOCKET_ERROR_BIND_FAIL;
   }
