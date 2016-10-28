@@ -119,6 +119,7 @@ static int check_time_out()
         //reset cmd string
         memset(sysCmd, 0, strlen(sysCmd));
       }
+      printf("current timeout %d\r\n", app_iterator->second.currentTO);
     }
   }
   return 0;
